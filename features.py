@@ -34,7 +34,7 @@ LIP_LOWER_R = 402   # lower inner lip — right
 MOUTH_IDX = [LIP_LEFT, LIP_RIGHT, LIP_UPPER_L, LIP_LOWER_L,
              LIP_UPPER_C, LIP_LOWER_C, LIP_UPPER_R, LIP_LOWER_R]
 
-# Head-pose key points (6-point canonical model)
+# Head-pose key points (6-point canonical model for MediaPipe 468)
 POSE_IDX = [1, 152, 33, 263, 61, 291]
 #            │   │    │    │    │    └ right mouth corner
 #            │   │    │    │    └ left mouth corner
@@ -42,6 +42,11 @@ POSE_IDX = [1, 152, 33, 263, 61, 291]
 #            │   │    └ left eye outer corner
 #            │   └ chin
 #            └ nose tip
+
+# 68-point topology (OpenCV FacemarkLBF / dlib standard)
+LEFT_EYE_68 = [36, 37, 38, 39, 40, 41]
+RIGHT_EYE_68 = [42, 43, 44, 45, 46, 47]
+POSE_68 = [30, 8, 36, 45, 48, 54]
 
 # Anthropometric 3-D model in millimetres (generic adult face)
 _MODEL_3D = np.array([
@@ -87,21 +92,27 @@ def compute_ear(eye_pts: np.ndarray) -> float:
 def compute_ear_avg(landmarks_px: np.ndarray) -> Tuple[float, float, float]:
     """Compute left, right, and average EAR from a full landmark array.
 
+    Supports both 468-point MediaPipe mesh and 68-point OpenCV Facemark.
+
     Args:
         landmarks_px: shape (N, 2+).
 
     Returns:
         (ear_left, ear_right, ear_avg)
     """
-    ear_l = compute_ear(landmarks_px[LEFT_EYE_IDX])
-    ear_r = compute_ear(landmarks_px[RIGHT_EYE_IDX])
+    if len(landmarks_px) < 100:
+        ear_l = compute_ear(landmarks_px[LEFT_EYE_68])
+        ear_r = compute_ear(landmarks_px[RIGHT_EYE_68])
+    else:
+        ear_l = compute_ear(landmarks_px[LEFT_EYE_IDX])
+        ear_r = compute_ear(landmarks_px[RIGHT_EYE_IDX])
     return ear_l, ear_r, (ear_l + ear_r) / 2.0
 
 
 def compute_mar(landmarks_px: np.ndarray) -> float:
     """Mouth Aspect Ratio — inner-lip opening relative to mouth width.
 
-    MAR = (d(81,178) + d(13,14) + d(311,402)) / (2 · d(61,291))
+    Supports both 468-point MediaPipe mesh and 68-point OpenCV Facemark.
 
     Args:
         landmarks_px: shape (N, 2+).
@@ -110,13 +121,23 @@ def compute_mar(landmarks_px: np.ndarray) -> float:
         MAR value.  Resting ≈ 0.1–0.25; yawning ≈ 0.5–0.9.
     """
     try:
-        d_h = _dist(landmarks_px[LIP_LEFT], landmarks_px[LIP_RIGHT])
-        if d_h < 1e-6:
-            return 0.0
-        d1 = _dist(landmarks_px[LIP_UPPER_L], landmarks_px[LIP_LOWER_L])
-        d2 = _dist(landmarks_px[LIP_UPPER_C], landmarks_px[LIP_LOWER_C])
-        d3 = _dist(landmarks_px[LIP_UPPER_R], landmarks_px[LIP_LOWER_R])
-        return (d1 + d2 + d3) / (2.0 * d_h)
+        if len(landmarks_px) < 100:
+            # 68-point model: mouth corners 48, 54; vertical pairs (50,58), (51,57), (52,56)
+            d_h = _dist(landmarks_px[48], landmarks_px[54])
+            if d_h < 1e-6:
+                return 0.0
+            d1 = _dist(landmarks_px[50], landmarks_px[58])
+            d2 = _dist(landmarks_px[51], landmarks_px[57])
+            d3 = _dist(landmarks_px[52], landmarks_px[56])
+            return (d1 + d2 + d3) / (2.0 * d_h)
+        else:
+            d_h = _dist(landmarks_px[LIP_LEFT], landmarks_px[LIP_RIGHT])
+            if d_h < 1e-6:
+                return 0.0
+            d1 = _dist(landmarks_px[LIP_UPPER_L], landmarks_px[LIP_LOWER_L])
+            d2 = _dist(landmarks_px[LIP_UPPER_C], landmarks_px[LIP_LOWER_C])
+            d3 = _dist(landmarks_px[LIP_UPPER_R], landmarks_px[LIP_LOWER_R])
+            return (d1 + d2 + d3) / (2.0 * d_h)
     except (IndexError, TypeError):
         return 0.0
 
@@ -128,6 +149,8 @@ def estimate_head_pose(
 ) -> Tuple[float, float, float, Optional[np.ndarray], Optional[np.ndarray]]:
     """Estimate Euler head-pose angles via OpenCV ``solvePnP``.
 
+    Supports both 468-point MediaPipe mesh and 68-point OpenCV Facemark.
+
     Args:
         landmarks_px: full pixel landmark array, shape (N, 2+).
         frame_shape:  (height, width).
@@ -138,7 +161,8 @@ def estimate_head_pose(
         Negative pitch → head tilted forward / down.
     """
     h, w = frame_shape[:2]
-    pts_2d = np.array([landmarks_px[i][:2] for i in POSE_IDX], dtype=np.float64)
+    pose_indices = POSE_68 if len(landmarks_px) < 100 else POSE_IDX
+    pts_2d = np.array([landmarks_px[i][:2] for i in pose_indices], dtype=np.float64)
 
     if camera_matrix is None:
         f = float(w)
