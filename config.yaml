@@ -1,0 +1,76 @@
+# =============================================================================
+# Driver Drowsiness Detection System — Configuration
+# Target: Raspberry Pi 4 Model B, Raspberry Pi OS 64-bit (Bookworm), Python 3.11
+# =============================================================================
+# All thresholds are starting values and should be adjusted via calibration.
+# These defaults are NOT universally accurate — they are reasonable initial points
+# based on published EAR/MAR literature.
+# =============================================================================
+
+camera:
+  source: 0                     # USB webcam index or "/dev/video0" or "video.mp4"
+  width: 640
+  height: 480
+  fps: 30
+
+gpio:
+  buzzer_pin: 17                # BCM GPIO 17 — Active buzzer (module with transistor driver)
+  green_led_pin: 27             # BCM GPIO 27 — Safe / Monitoring status LED
+  red_led_pin: 22               # BCM GPIO 22 — Alert / Alarm status LED
+  ack_button_pin: 23            # BCM GPIO 23 — Acknowledge push button (internal pull-up)
+  simulation_mode: false        # true = mock GPIO for laptop development
+
+detection:
+  # --- Eye Aspect Ratio (EAR) ------------------------------------------------
+  ear_closed_ratio: 0.75        # closed threshold = open_baseline × this ratio
+  ear_closure_duration_sec: 1.5 # continuous closure to set eye_flag
+  microsleep_duration_sec: 3.0  # continuous closure for microsleep override alarm
+
+  # --- PERCLOS (Percentage of Eye Closure) ------------------------------------
+  perclos_window_sec: 30.0      # sliding window duration
+  perclos_threshold: 0.15       # initial threshold; adjusted after calibration
+  perclos_baseline_margin: 0.05 # threshold = max(0.15, baseline + margin)
+
+  # --- Mouth Aspect Ratio (MAR) -----------------------------------------------
+  mar_threshold_offset: 0.15    # yawn threshold = resting_baseline + this offset
+  yawn_duration_sec: 1.5        # continuous open mouth to set yawn_flag
+
+  # --- Head Pitch (solvePnP) --------------------------------------------------
+  pitch_deviation_deg: 15.0     # degrees from calibrated upright baseline (15–20 range)
+  nod_duration_sec: 1.0         # continuous forward tilt to set head_flag
+
+fusion:
+  voting_threshold: 2           # number of simultaneous flags to trigger alarm
+  alarm_clear_duration_sec: 2.0 # all flags inactive this long → auto-clear alarm
+  ack_cooldown_sec: 3.0         # after ack button, suppress re-alarm for this duration
+
+calibration:
+  duration_sec: 45              # seconds of alert-driver data to collect
+  output_file: "calibration.yaml"
+
+watchdog:
+  frame_timeout_sec: 0.5        # no fresh frame → fault state
+  face_timeout_sec: 2.0         # no face detected → fault state
+
+logging:
+  directory: "logs"
+  telemetry_file: "telemetry.csv"
+  events_file: "events.csv"
+  telemetry_interval_sec: 0.1   # sample rate for telemetry CSV
+
+ui:
+  show_gui: true                # false for headless / systemd deployment
+  window_name: "Drowsiness Detection — Raspberry Pi 4"
+
+# --- Optional Linux Real-Time Scheduling (requires sudo) ---------------------
+# These settings are OPTIONAL and only take effect on Linux with root privileges.
+# Standard Raspberry Pi OS provides soft real-time — NOT hard real-time guarantees.
+# Enabling SCHED_FIFO may cause CPU starvation of lower-priority system processes.
+rt_scheduling:
+  enabled: false
+  alert_priority: 80
+  watchdog_priority: 60
+  fusion_priority: 50
+  alert_cpu_affinity: [3]
+  fusion_cpu_affinity: [3]
+  vision_cpu_affinity: [0, 1, 2]

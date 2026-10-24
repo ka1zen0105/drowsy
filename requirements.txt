@@ -1,0 +1,16 @@
+# Core Computer Vision & Numerical Computing
+opencv-python>=4.8.0
+mediapipe>=0.10.14
+numpy>=1.24.0
+
+# Configuration & Utilities
+PyYAML>=6.0.1
+
+# Testing & Linting
+pytest>=7.4.0
+
+# Raspberry Pi GPIO (automatically installed or used on Linux/Raspberry Pi)
+# Note: On Raspberry Pi OS Bookworm (Debian 12), install via apt or wheel:
+#   sudo apt install -y python3-gpiozero python3-lgpio
+gpiozero>=2.0; sys_platform == 'linux'
+lgpio>=0.2.2; sys_platform == 'linux'
