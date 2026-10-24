@@ -228,7 +228,9 @@ class FaceMeshDetector:
             ok, landmarks = self._facemark.fit(gray, np.array(faces))
             if not ok or len(landmarks) == 0:
                 return None
-            pts = landmarks[0][0]  # shape (68, 2)
+            pts = landmarks[0].reshape(-1, 2)
+            if len(pts) < 68:
+                return None
             h, w = bgr_frame.shape[:2]
             norm = np.zeros((len(pts), 3), dtype=np.float32)
             norm[:, 0] = pts[:, 0] / w
