@@ -1,0 +1,65 @@
+================================================================================
+RASPBERRY PI 4 (64-BIT BOOKWORM) - INSTALLATION & RUN COMMANDS
+Driver Drowsiness Detection System
+================================================================================
+
+# STEP 1: Update system & install required packages
+sudo apt update && sudo apt upgrade -y
+sudo apt install -y git python3-pip python3-venv python3-gpiozero python3-lgpio libgl1-mesa-glx libglib2.0-0 libatlas-base-dev
+
+# STEP 2: Clone repository from GitHub
+cd ~
+git clone https://github.com/ka1zen0105/drowsy.git
+cd drowsy
+
+# STEP 3: Create virtual environment and install Python packages
+python3 -m venv --system-site-packages venv
+source venv/bin/activate
+pip install --upgrade pip
+pip install -r requirements.txt
+
+# STEP 4: Hardware GPIO self-test (verify LEDs & Buzzer)
+python3 -c "from config import load_config; from alert import create_alert_controller; ctrl = create_alert_controller(load_config().gpio); ctrl.self_test(); ctrl.cleanup()"
+
+# STEP 5: Run automated test suite (32 unit tests)
+pytest tests/ -v
+
+# STEP 6: Run driver baseline calibration (30 seconds)
+python3 calibrate.py --duration 30
+
+# STEP 7: Start real-time detection
+
+# Option A: With GUI window (monitor connected)
+python3 main.py
+
+# Option B: Headless mode (no monitor / car dashboard deployment)
+python3 main.py --no-gui
+
+# STEP 8: Evaluate session performance & logs (after driving)
+python3 tools/evaluate.py logs/
+
+================================================================================
+OPTIONAL: AUTO-START ON RASPBERRY PI BOOT (SYSTEMD SERVICE)
+================================================================================
+
+sudo bash -c 'cat <<EOF > /etc/systemd/system/drowsy.service
+[Unit]
+Description=Driver Drowsiness Detection System
+After=multi-user.target
+
+[Service]
+Type=simple
+User='$USER'
+WorkingDirectory='$HOME'/drowsy
+ExecStart='$HOME'/drowsy/venv/bin/python3 '$HOME'/drowsy/main.py --no-gui
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+EOF'
+
+sudo systemctl daemon-reload
+sudo systemctl enable drowsy.service
+sudo systemctl start drowsy.service
+sudo systemctl status drowsy.service
