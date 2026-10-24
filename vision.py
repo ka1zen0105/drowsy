@@ -191,19 +191,40 @@ class CameraReader:
     def start(self) -> "CameraReader":
         if self._running:
             return self
-        backend = cv2.CAP_V4L2 if (sys.platform.startswith("linux")
-                                    and isinstance(self.source, int)) else cv2.CAP_ANY
+
+        # Platform-specific backend: V4L2 on Linux/Pi, DirectShow on Windows
+        if isinstance(self.source, int):
+            if sys.platform.startswith("linux"):
+                backend = cv2.CAP_V4L2
+            elif sys.platform == "win32":
+                backend = cv2.CAP_DSHOW
+            else:
+                backend = cv2.CAP_ANY
+        else:
+            backend = cv2.CAP_ANY
+
         self._cap = cv2.VideoCapture(self.source, backend)
         if not self._cap.isOpened() and backend != cv2.CAP_ANY:
-            self._cap = cv2.VideoCapture(self.source)
+            self._cap = cv2.VideoCapture(self.source, cv2.CAP_ANY)
+
         if not self._cap.isOpened():
             raise RuntimeError(f"Cannot open camera source '{self.source}'.")
+
         self._cap.set(cv2.CAP_PROP_FRAME_WIDTH, self.width)
         self._cap.set(cv2.CAP_PROP_FRAME_HEIGHT, self.height)
         self._cap.set(cv2.CAP_PROP_FPS, self.target_fps)
-        ret, frame = self._cap.read()
-        if not ret:
+
+        # Allow camera sensor a brief warmup to deliver the first valid frame
+        frame = None
+        for _ in range(10):
+            ret, frame = self._cap.read()
+            if ret and frame is not None:
+                break
+            time.sleep(0.05)
+
+        if frame is None:
             raise RuntimeError("Camera opened but first frame read failed.")
+
         with self._lock:
             self._frame = frame
         self._running = True
