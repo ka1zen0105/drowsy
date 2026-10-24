@@ -30,6 +30,7 @@ class CameraConfig:
 @dataclass
 class GPIOConfig:
     buzzer_pin: int = 17
+    buzzer_active_high: bool = True
     green_led_pin: int = 27
     red_led_pin: int = 22
     ack_button_pin: int = 23

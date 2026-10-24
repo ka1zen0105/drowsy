@@ -148,20 +148,11 @@ class MockAlertController(AlertController):
         self._current_mode = "fault"
 
     def _fault_loop(self) -> None:
-        """Blink red LED (0.25 s on/off) + short buzzer beeps (0.1 s on / 0.9 s off)."""
-        tick = 0
+        """Blink red LED (0.25 s on/off) while keeping buzzer silent."""
+        self._buzzer = False
         while self._fault_running:
-            # Red blink: toggle every 0.25 s
             self._red = not self._red
-            # Buzzer beep: 0.1 s on every 1 s
-            if tick % 4 == 0:
-                self._buzzer = True
-                time.sleep(0.1)
-                self._buzzer = False
-                time.sleep(0.15)
-            else:
-                time.sleep(0.25)
-            tick += 1
+            time.sleep(0.25)
 
     def _stop_fault_pattern(self) -> None:
         self._fault_running = False
@@ -219,7 +210,8 @@ class HardwareAlertController(AlertController):
 
             self._green_led = LED(config.green_led_pin)
             self._red_led   = LED(config.red_led_pin)
-            self._buzzer    = Buzzer(config.buzzer_pin)
+            active_high     = getattr(config, "buzzer_active_high", True)
+            self._buzzer    = Buzzer(config.buzzer_pin, active_high=active_high)
             self._button    = Button(config.ack_button_pin, pull_up=True,
                                       bounce_time=0.2)
             self._button.when_pressed = self._on_button
@@ -275,6 +267,7 @@ class HardwareAlertController(AlertController):
             return
         self._stop_fault_pattern()
         self._green_led.off()
+        self._buzzer.off()
         self._fault_running = True
         self._fault_thread = threading.Thread(target=self._fault_loop,
                                               daemon=True, name="FaultBlink")
@@ -282,15 +275,10 @@ class HardwareAlertController(AlertController):
         self._current_mode = "fault"
 
     def _fault_loop(self) -> None:
-        tick = 0
+        """Blink red LED during fault state while keeping buzzer silent."""
         while self._fault_running:
             self._red_led.toggle()
-            if tick % 4 == 0:
-                self._buzzer.on(); time.sleep(0.1); self._buzzer.off()
-                time.sleep(0.15)
-            else:
-                time.sleep(0.25)
-            tick += 1
+            time.sleep(0.25)
 
     def _stop_fault_pattern(self) -> None:
         self._fault_running = False

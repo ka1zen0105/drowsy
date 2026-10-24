@@ -520,6 +520,8 @@ def parse_args() -> argparse.Namespace:
                    help="Headless mode (no OpenCV window).")
     p.add_argument("--skip-calibration", action="store_true",
                    help="Skip calibration; use saved or default values.")
+    p.add_argument("--buzzer-active-low", action="store_true",
+                   help="Invert buzzer logic (for Active-Low buzzer modules).")
     p.add_argument("--camera", default=None,
                    help="Camera source override (index, path, or video file).")
     p.add_argument("--config", default=None, help="Path to config.yaml.")
@@ -534,6 +536,8 @@ def main() -> int:
         cfg.gpio.simulation_mode = True
     if args.no_gui:
         cfg.ui.show_gui = False
+    if args.buzzer_active_low:
+        cfg.gpio.buzzer_active_high = False
     if args.camera is not None:
         cfg.camera.source = (int(args.camera) if args.camera.isdigit()
                              else args.camera)
