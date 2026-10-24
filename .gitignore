@@ -38,8 +38,8 @@ env/
 htmlcov/
 
 # Logs and runtime telemetry
-logs/*.csv
-!logs/.gitkeep
+# (Preserve tested evaluation logs in repo)
+# logs/*.csv
 
 # Local user calibration file
 calibration.yaml
