@@ -22,7 +22,7 @@ def analyze_logs(log_dir: Path) -> int:
     evt_path = log_dir / "events.csv"
 
     print("=" * 65)
-    print("  Driver Drowsiness Detection System — Post-Run Log Evaluation  ")
+    print("  Driver Drowsiness Detection System - Post-Run Log Evaluation  ")
     print("=" * 65)
     print(f"Log directory: {log_dir.resolve()}\n")
 
@@ -68,7 +68,7 @@ def analyze_logs(log_dir: Path) -> int:
     duration_sec = timestamps[-1] - timestamps[0] if len(timestamps) > 1 else 0.0
     effective_fps = (total_frames / duration_sec) if duration_sec > 0 else 0.0
 
-    print("── Telemetry Summary ──────────────────────────────────────────")
+    print("--- Telemetry Summary ------------------------------------------")
     print(f"Total recorded frames   : {total_frames}")
     print(f"Total session duration  : {duration_sec:.2f} s ({duration_sec / 60:.1f} min)")
     print(f"Average effective FPS   : {effective_fps:.2f} fps")
@@ -77,7 +77,7 @@ def analyze_logs(log_dir: Path) -> int:
     print(f"Fault active frames     : {fault_frames} ({fault_frames / total_frames * 100:.1f}%)")
 
     if ears:
-        print("\n── Feature Distribution ───────────────────────────────────────")
+        print("\n--- Feature Distribution ---------------------------------------")
         ears.sort()
         mars.sort()
         pitches.sort()
@@ -87,10 +87,10 @@ def analyze_logs(log_dir: Path) -> int:
             idx = int(len(arr) * p)
             return arr[min(idx, len(arr) - 1)]
 
-        print(f"EAR     — Min: {ears[0]:.3f} | Median: {percentile(ears, 0.5):.3f} | Max: {ears[-1]:.3f}")
-        print(f"MAR     — Min: {mars[0]:.3f} | Median: {percentile(mars, 0.5):.3f} | Max: {mars[-1]:.3f}")
-        print(f"Pitch   — Min: {pitches[0]:.1f}°| Median: {percentile(pitches, 0.5):.1f}°| Max: {pitches[-1]:.1f}°")
-        print(f"PERCLOS — Min: {percloss[0]:.3f} | Median: {percentile(percloss, 0.5):.3f} | Max: {percloss[-1]:.3f}")
+        print(f"EAR     - Min: {ears[0]:.3f} | Median: {percentile(ears, 0.5):.3f} | Max: {ears[-1]:.3f}")
+        print(f"MAR     - Min: {mars[0]:.3f} | Median: {percentile(mars, 0.5):.3f} | Max: {mars[-1]:.3f}")
+        print(f"Pitch   - Min: {pitches[0]:.1f} deg | Median: {percentile(pitches, 0.5):.1f} deg | Max: {pitches[-1]:.1f} deg")
+        print(f"PERCLOS - Min: {percloss[0]:.3f} | Median: {percentile(percloss, 0.5):.3f} | Max: {percloss[-1]:.3f}")
 
     # 2. Parse Events
     if evt_path.exists():
@@ -108,12 +108,12 @@ def analyze_logs(log_dir: Path) -> int:
                 if "ACK" in evt or "BUTTON" in evt:
                     ack_events.append(float(row["timestamp_epoch"]))
 
-        print("\n── Discrete Events Summary ────────────────────────────────────")
+        print("\n--- Discrete Events Summary ------------------------------------")
         for evt, count in sorted(event_counts.items()):
-            print(f"  • {evt:<22} : {count}")
+            print(f"  * {evt:<22} : {count}")
 
         if alarm_events:
-            print("\n── Alarms Triggered ───────────────────────────────────────────")
+            print("\n--- Alarms Triggered -------------------------------------------")
             for al in alarm_events[:10]:
                 print(f"  [{al['timestamp_iso']}] {al['event_type']} - {al.get('details', '')} (EAR={al.get('ear_avg')}, MAR={al.get('mar')})")
             if len(alarm_events) > 10:
