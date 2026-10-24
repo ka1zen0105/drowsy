@@ -266,11 +266,10 @@ class DrowsinessApp:
             except queue.Empty:
                 continue
 
-            # Skip if in fault state (watchdog owns that)
-            if self.state.fault_event.is_set():
-                continue
-
-            alarm = self.fusion.update(rec)
+            # If in fault state, skip fusion alarm evaluation but continue telemetry & snapshot
+            alarm = False
+            if not self.state.fault_event.is_set():
+                alarm = self.fusion.update(rec)
 
             # Update shared state snapshot
             with self.state.lock:
@@ -284,26 +283,27 @@ class DrowsinessApp:
                 self.state.microsleep = self.fusion.microsleep
                 self.state.eye_closure_duration = self.fusion.eye_closure_duration
 
-            if alarm and not prev_alarm:
-                self.state.alarm_event.set()
-                self.state.system_state = SystemState.ALARM
-                reason = self._alarm_reason()
-                if self.csv_logger:
-                    self.csv_logger.log_event(
-                        "ALARM_ON", reason,
-                        ear=rec.ear_avg, mar=rec.mar,
-                        pitch=rec.pitch_deg, perclos=self.fusion.perclos,
-                    )
-                print(f"\n[ALARM] {reason}")
-            elif not alarm and prev_alarm:
-                self.state.alarm_event.clear()
-                if not self.state.fault_event.is_set():
-                    self.state.system_state = SystemState.MONITORING
-                if self.csv_logger:
-                    self.csv_logger.log_event("ALARM_OFF", "Alarm cleared.")
-                print("[Main] Alarm cleared.")
+            if not self.state.fault_event.is_set():
+                if alarm and not prev_alarm:
+                    self.state.alarm_event.set()
+                    self.state.system_state = SystemState.ALARM
+                    reason = self._alarm_reason()
+                    if self.csv_logger:
+                        self.csv_logger.log_event(
+                            "ALARM_ON", reason,
+                            ear=rec.ear_avg, mar=rec.mar,
+                            pitch=rec.pitch_deg, perclos=self.fusion.perclos,
+                        )
+                    print(f"\n[ALARM] {reason}")
+                elif not alarm and prev_alarm:
+                    self.state.alarm_event.clear()
+                    if not self.state.fault_event.is_set():
+                        self.state.system_state = SystemState.MONITORING
+                    if self.csv_logger:
+                        self.csv_logger.log_event("ALARM_OFF", "Alarm cleared.")
+                    print("[Main] Alarm cleared.")
 
-            prev_alarm = alarm
+                prev_alarm = alarm
 
             # Telemetry logging
             if self.csv_logger:

@@ -60,7 +60,7 @@ logging:
 
 ui:
   show_gui: true                # false for headless / systemd deployment
-  window_name: "Drowsiness Detection — Raspberry Pi 4"
+  window_name: "Drowsiness Detection - Raspberry Pi 4"
 
 # --- Optional Linux Real-Time Scheduling (requires sudo) ---------------------
 # These settings are OPTIONAL and only take effect on Linux with root privileges.

@@ -84,7 +84,7 @@ class LoggingConfig:
 @dataclass
 class UIConfig:
     show_gui: bool = True
-    window_name: str = "Drowsiness Detection — Raspberry Pi 4"
+    window_name: str = "Drowsiness Detection - Raspberry Pi 4"
 
 
 @dataclass
