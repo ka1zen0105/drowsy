@@ -288,27 +288,39 @@ class CameraReader:
                 backend = cv2.CAP_DSHOW
             else:
                 backend = cv2.CAP_ANY
+            candidates = [self.source] + [i for i in [0, 1, 2, 3] if i != self.source]
         else:
             backend = cv2.CAP_ANY
+            candidates = [self.source]
 
-        self._cap = cv2.VideoCapture(self.source, backend)
-        if not self._cap.isOpened() and backend != cv2.CAP_ANY:
-            self._cap = cv2.VideoCapture(self.source, cv2.CAP_ANY)
+        for cand in candidates:
+            cap = cv2.VideoCapture(cand, backend)
+            if not cap.isOpened() and backend != cv2.CAP_ANY:
+                cap = cv2.VideoCapture(cand, cv2.CAP_ANY)
+            if not cap.isOpened():
+                cap.release()
+                continue
 
-        if not self._cap.isOpened():
-            raise RuntimeError(f"Cannot open camera source '{self.source}'.")
+            cap.set(cv2.CAP_PROP_FRAME_WIDTH, self.width)
+            cap.set(cv2.CAP_PROP_FRAME_HEIGHT, self.height)
+            cap.set(cv2.CAP_PROP_FPS, self.target_fps)
 
-        self._cap.set(cv2.CAP_PROP_FRAME_WIDTH, self.width)
-        self._cap.set(cv2.CAP_PROP_FRAME_HEIGHT, self.height)
-        self._cap.set(cv2.CAP_PROP_FPS, self.target_fps)
+            # Warmup retry loop
+            frame = None
+            for _ in range(10):
+                ret, frame = cap.read()
+                if ret and frame is not None:
+                    break
+                time.sleep(0.05)
 
-        # Allow camera sensor a brief warmup to deliver the first valid frame
-        frame = None
-        for _ in range(10):
-            ret, frame = self._cap.read()
-            if ret and frame is not None:
+            if frame is not None:
+                self.source = cand
+                self._cap = cap
                 break
-            time.sleep(0.05)
+            cap.release()
+
+        if self._cap is None or not self._cap.isOpened():
+            raise RuntimeError(f"Cannot open camera source '{self.source}' (probed candidates: {candidates}).")
 
         if frame is None:
             raise RuntimeError("Camera opened but first frame read failed.")
